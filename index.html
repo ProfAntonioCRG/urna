@@ -1,1 +1,128 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Urna Eletrônica</title>
+    <style>
+        body { font-family: Arial, sans-serif; text-align: center; background-color: #ddd; }
+        .urna { background: #fff; border-radius: 10px; padding: 20px; display: inline-block; box-shadow: 0 0 10px rgba(0,0,0,0.2); }
+        .tela { background: #000; color: #0f0; padding: 10px; height: 100px; display: flex; align-items: center; justify-content: center; font-size: 20px; margin-bottom: 10px; }
+        .teclado { display: grid; grid-template-columns: repeat(3, 50px); gap: 10px; justify-content: center; }
+        .botao { width: 50px; height: 50px; font-size: 18px; cursor: pointer; }
+        .botao.confirma { background: green; color: white; }
+        .botao.corrige { background: orange; color: white; }
+        .botao.branco { background: gray; color: white; }
+        #rgInput { margin-bottom: 10px; padding: 5px; font-size: 16px; }
+        #verificarRG { margin-bottom: 10px; padding: 5px 10px; font-size: 16px; cursor: pointer; }
+    </style>
+</head>
+<body>
+    <div class="urna">
+        <h2>Urna Eletrônica</h2>
+        <input type="text" id="rgInput" placeholder="Digite seu RG">
+        <button id="verificarRG" onclick="verificarRG()">Verificar RG</button>
+        <div class="tela" id="tela">Digite seu voto</div>
+        <div class="teclado">
+            <button class="botao" onclick="digitar('1')">1</button>
+            <button class="botao" onclick="digitar('2')">2</button>
+            <button class="botao" onclick="digitar('3')">3</button>
+            <button class="botao" onclick="digitar('4')">4</button>
+            <button class="botao" onclick="digitar('5')">5</button>
+            <button class="botao" onclick="digitar('6')">6</button>
+            <button class="botao" onclick="digitar('7')">7</button>
+            <button class="botao" onclick="digitar('8')">8</button>
+            <button class="botao" onclick="digitar('9')">9</button>
+            <button class="botao" onclick="digitar('0')">0</button>
+            <button class="botao branco" onclick="votarBranco()">Branco</button>
+            <button class="botao corrige" onclick="corrigir()">Corrige</button>
+            <button class="botao confirma" onclick="confirmar()">Confirma</button>
+        </div>
+    </div>
+    <audio id="somTecla" src="tecla.mp3"></audio>
+    <audio id="somConfirma" src="confirma.mp3"></audio>
+    <script>
+        let voto = '';
+        let rgValido = false;
+        let rgUsuario = '';
 
+        function tocarSom(tecla) {
+            const audio = document.getElementById(tecla);
+            if (audio) {
+                audio.play();
+            }
+        }
+
+        function verificarRG() {
+            const rg = document.getElementById('rgInput').value.trim();
+            if (rg === '') {
+                alert('Por favor, insira um RG válido.');
+                return;
+            }
+            fetch('http://localhost:3000/verificar-rg', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ rg })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.permitido) {
+                    rgValido = true;
+                    rgUsuario = rg;
+                    alert('RG válido, você pode votar.');
+                } else {
+                    alert('Este RG já votou ou é inválido.');
+                }
+            })
+            .catch(error => console.error('Erro:', error));
+        }
+
+        function digitar(num) {
+            if (!rgValido) {
+                alert('Verifique seu RG antes de votar.');
+                return;
+            }
+            if (voto.length < 2) {
+                voto += num;
+                document.getElementById('tela').innerText = voto;
+                tocarSom('somTecla');
+            }
+        }
+
+        function corrigir() {
+            voto = '';
+            document.getElementById('tela').innerText = 'Digite seu voto';
+        }
+
+        function votarBranco() {
+            if (!rgValido) {
+                alert('Verifique seu RG antes de votar.');
+                return;
+            }
+            voto = 'Branco';
+            document.getElementById('tela').innerText = voto;
+        }
+
+        function confirmar() {
+            if (!rgValido) {
+                alert('Verifique seu RG antes de votar.');
+                return;
+            }
+            if (voto !== '') {
+                fetch('http://localhost:3000/votar', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ rg: rgUsuario, candidato: voto })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    alert(data.message);
+                    tocarSom('somConfirma');
+                })
+                .catch(error => console.error('Erro:', error));
+                corrigir();
+            }
+        }
+    </script>
+</body>
+</html>
